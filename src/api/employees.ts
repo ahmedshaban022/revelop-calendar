@@ -3,7 +3,7 @@ import type { Employee } from './types';
 
 export const employeesApi = {
   getAll: async (): Promise<Employee[]> => {
-    const response = await apiClient.get<Employee[]>('/employees');
+    const response = await apiClient.get<Employee[]>('admin/employees');
     return response.data;
   },
 };

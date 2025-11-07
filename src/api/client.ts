@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { AxiosError } from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://react-test.revelop.dev';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://react-test.revelop.dev/api';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
