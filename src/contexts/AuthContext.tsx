@@ -8,6 +8,8 @@ interface User {
   id: string;
   email: string;
   name?: string;
+  user_type?: string;
+  phone?: string;
 }
 
 interface AuthContextType {
@@ -20,44 +22,76 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const USER_STORAGE_KEY = 'auth_user';
+
+const loadStoredUser = (): User | null => {
+  try {
+    const raw = localStorage.getItem(USER_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch (error) {
+    console.warn('Failed to parse stored user', error);
+    return null;
+  }
+};
+
+const persistUser = (user: User | null) => {
+  if (!user) {
+    localStorage.removeItem(USER_STORAGE_KEY);
+    return;
+  }
+  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
-  // Restore token from localStorage on mount
+  // Restore token and user from localStorage on mount
   useEffect(() => {
     const storedToken = getStoredToken();
+    const storedUser = loadStoredUser();
     if (storedToken) {
       setToken(storedToken);
-      // If user info is stored separately, restore it here
-      // For now, we'll fetch it on login
+    }
+    if (storedUser) {
+      setUser(storedUser);
     }
   }, []);
 
   const login = async (credentials: LoginRequest) => {
-    try {
-      const response: LoginResponse = await authApi.login(credentials);
-      const { token: newToken, user: userData } = response;
-      
-      setStoredToken(newToken);
-      setToken(newToken);
-      
-      if (userData) {
-        setUser(userData);
-      } else {
-        // If user data not in response, create minimal user from email
-        setUser({
-          id: credentials.email,
-          email: credentials.email,
-        });
-      }
-    } catch (error) {
-      throw error;
+    const response: LoginResponse = await authApi.login(credentials);
+    const { token: newToken, user: userData } = response;
+
+    if (!newToken) {
+      throw new Error('Authentication failed: missing token');
+    }
+
+    setStoredToken(newToken);
+    setToken(newToken);
+
+    if (userData) {
+      const normalizedUser: User = {
+        id: userData.id,
+        email: userData.email,
+        name: userData.name,
+        user_type: userData.user_type,
+        phone: userData.phone,
+      };
+      setUser(normalizedUser);
+      persistUser(normalizedUser);
+    } else {
+      const fallbackUser: User = {
+        id: credentials.email,
+        email: credentials.email,
+      };
+      setUser(fallbackUser);
+      persistUser(fallbackUser);
     }
   };
 
   const logout = () => {
     removeStoredToken();
+    persistUser(null);
     setToken(null);
     setUser(null);
   };
